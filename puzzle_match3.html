@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>까마귀 광장 청소</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2e2e2e 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #e0e0e0;
+    user-select: none;
+  }
+  .container { text-align: center; padding: 20px; }
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    letter-spacing: 0.05em;
+    color: #d4d4d4;
+  }
+  .rules {
+    max-width: 520px;
+    margin: 0 auto 1.5rem;
+    padding: 14px 20px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid #444;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: #b8b8b8;
+    text-align: left;
+  }
+  .rules-title {
+    font-weight: 600;
+    color: #e0e0e0;
+    margin-bottom: 6px;
+  }
+  .rules ol { margin: 0; padding-left: 20px; }
+  .rules li { margin-bottom: 2px; }
+  .progress {
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    color: #d4d4d4;
+    letter-spacing: 0.05em;
+  }
+  .progress.done { color: #a8e6a3; }
+  .board {
+    display: inline-grid;
+    grid-template-columns: repeat(8, 50px);
+    grid-template-rows: repeat(8, 50px);
+    gap: 3px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+  }
+  .tile {
+    background: linear-gradient(145deg, #4a4a4a, #2f2f2f);
+    border: 2px solid #6a6a6a;
+    border-radius: 6px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.6rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+  .tile.empty { visibility: hidden; }
+  .tile:hover { border-color: #b0b0b0; }
+  .tile.selected {
+    border-color: #ffffff;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+    transform: scale(1.08);
+  }
+  .tile.t0, .tile.t1, .tile.t2, .tile.t3 {
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
+  }
+  .win {
+    margin-top: 1.5rem;
+    font-size: 1.1rem;
+    color: #d4d4d4;
+    opacity: 0;
+    transition: opacity 0.3s;
+    height: 1.5rem;
+  }
+  .win.show { opacity: 1; }
+  .toast {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 14px 28px;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid #888;
+    border-radius: 10px;
+    color: #f0f0f0;
+    font-size: 1.1rem;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transition: opacity 0.25s;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>까마귀 광장 청소</h1>
+    <div class="rules">
+      <div class="rules-title">까마귀 광장 청소 Tip!</div>
+      <ol>
+        <li>인접한 두 쓰레기를 클릭해 위치를 바꿉니다.</li>
+        <li>같은 종류 3개 이상이 가로/세로로 줄 지으면 치워집니다.</li>
+        <li>빈 자리에는 위에서 새 쓰레기가 떨어집니다.</li>
+        <li>목표 개수만큼 치우면 완성됩니다.</li>
+      </ol>
+    </div>
+    <div class="progress" id="progress">청소: 0 / 100</div>
+    <div class="board" id="board"></div>
+    <div class="win" id="win">완성!</div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+  const ROWS = 8, COLS = 8;
+  const TYPES = 4;
+  const ICONS = ['🍶', '📄', '🍎', '🍃'];
+  const TARGET = 100;
+
+  let grid = [];
+  let selected = null;
+  let busy = false;
+  let clearedCount = 0;
+  let won = false;
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function generateBoard() {
+    let safety = 0;
+    do {
+      grid = [];
+      for (let r = 0; r < ROWS; r++) {
+        const row = [];
+        for (let c = 0; c < COLS; c++) {
+          const banned = new Set();
+          if (c >= 2 && row[c-1].type === row[c-2].type) banned.add(row[c-1].type);
+          if (r >= 2 && grid[r-1][c].type === grid[r-2][c].type) banned.add(grid[r-1][c].type);
+          const choices = [];
+          for (let t = 0; t < TYPES; t++) if (!banned.has(t)) choices.push(t);
+          row.push({ type: choices[Math.floor(Math.random() * choices.length)] });
+        }
+        grid.push(row);
+      }
+      safety++;
+    } while (!hasAnyValidMove() && safety < 100);
+  }
+
+  function render() {
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const div = document.createElement('div');
+        const cell = grid[r][c];
+        if (!cell) {
+          div.className = 'tile empty';
+        } else {
+          div.className = 'tile t' + cell.type +
+            (selected && selected.r === r && selected.c === c ? ' selected' : '');
+          div.textContent = ICONS[cell.type];
+          div.addEventListener('click', () => tileClick(r, c));
+        }
+        board.appendChild(div);
+      }
+    }
+    const prog = document.getElementById('progress');
+    prog.textContent = `청소: ${Math.min(clearedCount, TARGET)} / ${TARGET}`;
+    prog.classList.toggle('done', won);
+    document.getElementById('win').classList.toggle('show', won);
+  }
+
+  async function tileClick(r, c) {
+    if (busy || won || !grid[r][c]) return;
+    if (selected && selected.r === r && selected.c === c) {
+      selected = null;
+      render();
+      return;
+    }
+    if (!selected) {
+      selected = { r, c };
+      render();
+      return;
+    }
+    if (Math.abs(selected.r - r) + Math.abs(selected.c - c) === 1) {
+      const s = selected;
+      selected = null;
+      await trySwap(s.r, s.c, r, c);
+    } else {
+      selected = { r, c };
+      render();
+    }
+  }
+
+  async function trySwap(r1, c1, r2, c2) {
+    busy = true;
+    [grid[r1][c1], grid[r2][c2]] = [grid[r2][c2], grid[r1][c1]];
+    render();
+    await sleep(180);
+
+    if (findMatches().length === 0) {
+      [grid[r1][c1], grid[r2][c2]] = [grid[r2][c2], grid[r1][c1]];
+      render();
+      busy = false;
+      return;
+    }
+
+    while (processMatches()) {
+      render();
+      await sleep(260);
+    }
+
+    if (clearedCount >= TARGET) {
+      won = true;
+      render();
+      busy = false;
+      return;
+    }
+
+    if (!hasAnyValidMove()) {
+      showToast('자동 셔플');
+      await sleep(700);
+      shuffleRemaining();
+      render();
+      await sleep(300);
+      hideToast();
+    }
+    busy = false;
+  }
+
+  function findMatches() {
+    const toRemove = new Set();
+    for (let r = 0; r < ROWS; r++) {
+      let c = 0;
+      while (c < COLS) {
+        if (!grid[r][c]) { c++; continue; }
+        let end = c + 1;
+        while (end < COLS && grid[r][end] && grid[r][end].type === grid[r][c].type) end++;
+        if (end - c >= 3) for (let k = c; k < end; k++) toRemove.add(r * COLS + k);
+        c = end;
+      }
+    }
+    for (let c = 0; c < COLS; c++) {
+      let r = 0;
+      while (r < ROWS) {
+        if (!grid[r][c]) { r++; continue; }
+        let end = r + 1;
+        while (end < ROWS && grid[end][c] && grid[end][c].type === grid[r][c].type) end++;
+        if (end - r >= 3) for (let k = r; k < end; k++) toRemove.add(k * COLS + c);
+        r = end;
+      }
+    }
+    return Array.from(toRemove);
+  }
+
+  function processMatches() {
+    const matches = findMatches();
+    if (matches.length === 0) return false;
+    clearedCount += matches.length;
+    matches.forEach(idx => {
+      const r = Math.floor(idx / COLS), c = idx % COLS;
+      grid[r][c] = null;
+    });
+    applyGravity();
+    refill();
+    return true;
+  }
+
+  function applyGravity() {
+    for (let c = 0; c < COLS; c++) {
+      const column = [];
+      for (let r = 0; r < ROWS; r++) if (grid[r][c]) column.push(grid[r][c]);
+      const empty = ROWS - column.length;
+      for (let r = 0; r < empty; r++) grid[r][c] = null;
+      for (let r = 0; r < column.length; r++) grid[empty + r][c] = column[r];
+    }
+  }
+
+  function refill() {
+    for (let c = 0; c < COLS; c++) {
+      for (let r = 0; r < ROWS; r++) {
+        if (!grid[r][c]) grid[r][c] = { type: Math.floor(Math.random() * TYPES) };
+        else break;
+      }
+    }
+  }
+
+  function hasAnyValidMove() {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (!grid[r][c]) continue;
+        if (c + 1 < COLS && grid[r][c+1]) {
+          [grid[r][c], grid[r][c+1]] = [grid[r][c+1], grid[r][c]];
+          const ok = findMatches().length > 0;
+          [grid[r][c], grid[r][c+1]] = [grid[r][c+1], grid[r][c]];
+          if (ok) return true;
+        }
+        if (r + 1 < ROWS && grid[r+1][c]) {
+          [grid[r][c], grid[r+1][c]] = [grid[r+1][c], grid[r][c]];
+          const ok = findMatches().length > 0;
+          [grid[r][c], grid[r+1][c]] = [grid[r+1][c], grid[r][c]];
+          if (ok) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function canShuffleToValid() {
+    const counts = new Array(TYPES).fill(0);
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++)
+        if (grid[r][c]) counts[grid[r][c].type]++;
+    return counts.some(n => n >= 3);
+  }
+
+  function shuffleRemaining() {
+    const positions = [], types = [];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (grid[r][c]) {
+          positions.push([r, c]);
+          types.push(grid[r][c].type);
+        }
+      }
+    }
+    let safety = 0;
+    while (safety < 200) {
+      for (let i = types.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [types[i], types[j]] = [types[j], types[i]];
+      }
+      positions.forEach(([r, c], i) => grid[r][c] = { type: types[i] });
+      if (findMatches().length === 0 && hasAnyValidMove()) break;
+      safety++;
+    }
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+  }
+  function hideToast() {
+    document.getElementById('toast').classList.remove('show');
+  }
+
+  generateBoard();
+  render();
+</script>
+</body>
+</html>
