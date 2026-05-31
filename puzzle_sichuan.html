@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>성서 정리하기</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2e2e2e 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #e0e0e0;
+    user-select: none;
+  }
+  .container { text-align: center; }
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    letter-spacing: 0.05em;
+    color: #d4d4d4;
+  }
+  .rules {
+    max-width: 520px;
+    margin: 0 auto 1.5rem;
+    padding: 14px 20px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid #444;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: #b8b8b8;
+    text-align: left;
+  }
+  .rules-title {
+    font-weight: 600;
+    color: #e0e0e0;
+    margin-bottom: 6px;
+  }
+  .rules ol {
+    margin: 0;
+    padding-left: 20px;
+  }
+  .rules li {
+    margin-bottom: 2px;
+  }
+  .board-wrap {
+    position: relative;
+    padding: 90px;
+    display: inline-block;
+  }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(10, 60px);
+    grid-template-rows: repeat(4, 80px);
+    gap: 4px;
+  }
+  .tile {
+    background: linear-gradient(145deg, #4a4a4a, #2f2f2f);
+    border: 2px solid #6a6a6a;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2.2rem;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  }
+  .tile:hover {
+    border-color: #b0b0b0;
+    transform: translateY(-2px);
+  }
+  .tile.empty {
+    visibility: hidden;
+  }
+  .tile.selected {
+    border-color: #ffffff;
+    box-shadow: 0 0 14px rgba(255, 255, 255, 0.5);
+    transform: translateY(-4px);
+  }
+  .tile.t0 { color: #e74c3c; text-shadow: 0 0 8px rgba(231,76,60,0.5); }
+  .tile.t1 { color: #af7ac5; text-shadow: 0 0 8px rgba(175,122,197,0.5); }
+  .tile.t2 { color: #f1c40f; text-shadow: 0 0 8px rgba(241,196,15,0.5); }
+  .tile.t3 { color: #5dade2; text-shadow: 0 0 8px rgba(93,173,226,0.5); }
+  .overlay {
+    position: absolute;
+    top: 90px;
+    left: 90px;
+    width: 636px;
+    height: 332px;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .conn-line {
+    stroke: #ffffff;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    filter: drop-shadow(0 0 6px rgba(255,255,255,0.7));
+  }
+  .win {
+    margin-top: 1.5rem;
+    font-size: 1.1rem;
+    color: #d4d4d4;
+    opacity: 0;
+    transition: opacity 0.3s;
+    height: 1.5rem;
+  }
+  .win.show { opacity: 1; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>성서 정리하기</h1>
+    <div class="rules">
+      <div class="rules-title">성서 정리 Tip!</div>
+      <ol>
+        <li>같은 책 표지 2개를 클릭해 짝지으면 사라집니다.</li>
+        <li>단, 두 타일 사이를 꺾임 2번 이하의 선으로 이을 수 있어야 하며, 선은 다른 타일을 통과할 수 없습니다. (보드 바깥은 통과 가능합니다.)</li>
+        <li>모든 타일을 제거하면 완성됩니다.</li>
+        <li>진행 불가 시, 자동으로 재배치됩니다.</li>
+      </ol>
+    </div>
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+      <svg class="overlay" id="overlay"></svg>
+    </div>
+    <div class="win" id="win">완성!</div>
+  </div>
+
+<script>
+  const ROWS = 4, COLS = 10;
+  const TYPES = 4;
+  const ICONS = ['☽', '✦', '☀', '⚖']; // 달 · 별 · 해 · 저울
+  const TILE_W = 60, TILE_H = 80, GAP = 4;
+
+  let grid = [];
+  let selected = null;
+  let locked = false;
+
+  function init() {
+    const pool = [];
+    const eachCount = (ROWS * COLS) / TYPES;
+    for (let t = 0; t < TYPES; t++) {
+      for (let i = 0; i < eachCount; i++) pool.push(t);
+    }
+    do {
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      grid = [];
+      let idx = 0;
+      for (let r = 0; r < ROWS; r++) {
+        const row = [];
+        for (let c = 0; c < COLS; c++) row.push({ type: pool[idx++] });
+        grid.push(row);
+      }
+    } while (!hasAnyMove());
+    selected = null;
+  }
+
+  function render() {
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const cell = grid[r][c];
+        const div = document.createElement('div');
+        if (!cell) {
+          div.className = 'tile empty';
+        } else {
+          div.className = 'tile t' + cell.type +
+            (selected && selected.r === r && selected.c === c ? ' selected' : '');
+          div.textContent = ICONS[cell.type];
+          div.addEventListener('click', () => tileClick(r, c));
+        }
+        board.appendChild(div);
+      }
+    }
+    document.getElementById('win').classList.toggle('show', isWin());
+  }
+
+  function tileClick(r, c) {
+    if (locked || !grid[r][c]) return;
+    if (selected && selected.r === r && selected.c === c) {
+      selected = null;
+      render();
+      return;
+    }
+    if (!selected) {
+      selected = { r, c };
+      render();
+      return;
+    }
+    if (grid[selected.r][selected.c].type !== grid[r][c].type) {
+      selected = { r, c };
+      render();
+      return;
+    }
+    const path = findPath(selected.r, selected.c, r, c);
+    if (path) {
+      const sr = selected.r, sc = selected.c;
+      showLine(path);
+      grid[sr][sc] = null;
+      grid[r][c] = null;
+      selected = null;
+      locked = true;
+      render();
+      setTimeout(() => {
+        hideLine();
+        locked = false;
+        if (isWin()) {
+          render();
+        } else if (!hasAnyMove()) {
+          shuffleRemaining();
+          render();
+        }
+      }, 500);
+    } else {
+      selected = { r, c };
+      render();
+    }
+  }
+
+  function isEmpty(r, c) {
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return true;
+    return grid[r][c] === null;
+  }
+
+  function clearBetween(r1, c1, r2, c2) {
+    if (r1 === r2) {
+      const lo = Math.min(c1, c2), hi = Math.max(c1, c2);
+      for (let c = lo + 1; c < hi; c++) if (!isEmpty(r1, c)) return false;
+      return true;
+    }
+    if (c1 === c2) {
+      const lo = Math.min(r1, r2), hi = Math.max(r1, r2);
+      for (let r = lo + 1; r < hi; r++) if (!isEmpty(r, c1)) return false;
+      return true;
+    }
+    return false;
+  }
+
+  function findPath(r1, c1, r2, c2) {
+    if (r1 === r2 && clearBetween(r1, c1, r2, c2)) return [[r1, c1], [r2, c2]];
+    if (c1 === c2 && clearBetween(r1, c1, r2, c2)) return [[r1, c1], [r2, c2]];
+
+    if (isEmpty(r1, c2) && clearBetween(r1, c1, r1, c2) && clearBetween(r1, c2, r2, c2))
+      return [[r1, c1], [r1, c2], [r2, c2]];
+    if (isEmpty(r2, c1) && clearBetween(r1, c1, r2, c1) && clearBetween(r2, c1, r2, c2))
+      return [[r1, c1], [r2, c1], [r2, c2]];
+
+    for (let k = -1; k <= COLS; k++) {
+      if (k === c1 || k === c2) continue;
+      if (!isEmpty(r1, k) || !isEmpty(r2, k)) continue;
+      if (clearBetween(r1, c1, r1, k) && clearBetween(r1, k, r2, k) && clearBetween(r2, k, r2, c2))
+        return [[r1, c1], [r1, k], [r2, k], [r2, c2]];
+    }
+    for (let k = -1; k <= ROWS; k++) {
+      if (k === r1 || k === r2) continue;
+      if (!isEmpty(k, c1) || !isEmpty(k, c2)) continue;
+      if (clearBetween(r1, c1, k, c1) && clearBetween(k, c1, k, c2) && clearBetween(k, c2, r2, c2))
+        return [[r1, c1], [k, c1], [k, c2], [r2, c2]];
+    }
+    return null;
+  }
+
+  function cellCenter(r, c) {
+    return [c * (TILE_W + GAP) + TILE_W / 2, r * (TILE_H + GAP) + TILE_H / 2];
+  }
+
+  function showLine(path) {
+    const svg = document.getElementById('overlay');
+    const points = path.map(([r, c]) => cellCenter(r, c).join(',')).join(' ');
+    svg.innerHTML = `<polyline class="conn-line" points="${points}"></polyline>`;
+  }
+
+  function hideLine() {
+    document.getElementById('overlay').innerHTML = '';
+  }
+
+  function isWin() {
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++)
+        if (grid[r][c]) return false;
+    return true;
+  }
+
+  function hasAnyMove() {
+    const tiles = [];
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++)
+        if (grid[r][c]) tiles.push({ r, c, type: grid[r][c].type });
+    for (let i = 0; i < tiles.length; i++) {
+      for (let j = i + 1; j < tiles.length; j++) {
+        if (tiles[i].type !== tiles[j].type) continue;
+        if (findPath(tiles[i].r, tiles[i].c, tiles[j].r, tiles[j].c)) return true;
+      }
+    }
+    return false;
+  }
+
+  function shuffleRemaining() {
+    const positions = [];
+    const types = [];
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++)
+        if (grid[r][c]) {
+          positions.push([r, c]);
+          types.push(grid[r][c].type);
+        }
+    let safety = 0;
+    do {
+      for (let i = types.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [types[i], types[j]] = [types[j], types[i]];
+      }
+      positions.forEach(([r, c], i) => { grid[r][c] = { type: types[i] }; });
+      safety++;
+    } while (!hasAnyMove() && safety < 100);
+  }
+
+  init();
+  render();
+</script>
+</body>
+</html>
