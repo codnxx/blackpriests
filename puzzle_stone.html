@@ -20,10 +20,29 @@
   }
   h1 {
     font-size: 1.8rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     letter-spacing: 0.05em;
     color: #d4d4d4;
   }
+  .rules {
+    max-width: 340px;
+    margin: 0 auto 1.5rem;
+    padding: 14px 20px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid #444;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: #b8b8b8;
+    text-align: left;
+  }
+  .rules-title {
+    font-weight: 600;
+    color: #e0e0e0;
+    margin-bottom: 6px;
+  }
+  .rules ol { margin: 0; padding-left: 20px; }
+  .rules li { margin-bottom: 2px; }
   .board {
     display: grid;
     grid-template-columns: repeat(3, 100px);
@@ -78,6 +97,14 @@
 <body>
   <div class="container">
     <h1>정원 비석을 다시 조립하자</h1>
+    <div class="rules">
+      <div class="rules-title">정원 비석 조립 Tip!</div>
+      <ol>
+        <li>빈 칸과 맞닿은 조각을 클릭하면 빈 칸으로 밀려 이동합니다.</li>
+        <li>가로·세로로 인접한 조각만 옮길 수 있습니다.</li>
+        <li>숫자를 1부터 순서대로 맞추고 마지막 칸을 비우면 완성됩니다.</li>
+      </ol>
+    </div>
     <div class="board" id="board"></div>
     <div class="win" id="win">완성!</div>
   </div>
