@@ -80,14 +80,40 @@
     filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
   }
   .win {
-    margin-top: 1.5rem;
-    font-size: 1.1rem;
-    color: #d4d4d4;
+    position: fixed;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.65);
     opacity: 0;
-    transition: opacity 0.3s;
-    height: 1.5rem;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    z-index: 20;
   }
   .win.show { opacity: 1; }
+  .win-card {
+    padding: 36px 56px;
+    background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+    border: 1px solid #888;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    text-align: center;
+    transform: scale(0.85);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .win.show .win-card { transform: scale(1); }
+  .win-title {
+    font-size: 1.6rem;
+    color: #f0f0f0;
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+  }
+  .win-sub {
+    font-size: 1rem;
+    color: #b8b8b8;
+    letter-spacing: 0.1em;
+  }
   .toast {
     position: fixed;
     top: 40%;
@@ -122,7 +148,12 @@
     </div>
     <div class="progress" id="progress">청소: 0 / 100</div>
     <div class="board" id="board"></div>
-    <div class="win" id="win">완성!</div>
+  </div>
+  <div class="win" id="win">
+    <div class="win-card">
+      <div class="win-title">광장이 깨끗해졌습니다!</div>
+      <div class="win-sub">✦ 청소 100 / 100 ✦</div>
+    </div>
   </div>
   <div class="toast" id="toast"></div>
 
