@@ -68,11 +68,39 @@
     height: 1.5rem;
   }
   .win.show { opacity: 1; }
+  .rules {
+    max-width: 520px;
+    margin: 0 auto 1.5rem;
+    padding: 14px 20px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid #444;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: #b8b8b8;
+    text-align: left;
+  }
+  .rules-title {
+    font-weight: 600;
+    color: #e0e0e0;
+    margin-bottom: 6px;
+  }
+  .rules ol { margin: 0; padding-left: 20px; }
+  .rules li { margin-bottom: 2px; }
 </style>
 </head>
 <body>
   <div class="container">
     <h1>성수와 오염수를 분리하자</h1>
+    <div class="rules">
+      <div class="rules-title">성수와 오염수 분리 Tip!</div>
+      <ol>
+        <li>시험관을 클릭해 선택한 뒤, 다른 시험관을 클릭해 물을 붓습니다.</li>
+        <li>맨 위 색이 같거나 비어 있는 시험관에만 부을 수 있습니다.</li>
+        <li>같은 색끼리 위로 쌓이면 한 번에 옮겨집니다.</li>
+        <li>모든 시험관을 한 가지 색으로만 채우면 완성됩니다.</li>
+      </ol>
+    </div>
     <div class="tubes" id="tubes"></div>
     <div class="win" id="win">완성!</div>
   </div>
